@@ -4,7 +4,7 @@
 -- Date:    September 2023
 -- License: Creative Commons, BY-SA = attribution, share-alike
 --          [https://creativecommons.org/licenses/by-sa/4.0/]
- 
+
 -- L0 Main
 -- By:      Lluis Ribas-Xirgo
 --          Universitat Autonoma de Barcelona
@@ -227,59 +227,65 @@ write_outputs = function()
 end -- write_outputs()
 
 step = function()
-        -- Check if HALTed
-    if halted then
-      L.next = 0
-      R.next = 0
-      if state.curr == "LISTEN" then
-        M.next = "E HALT LISTEN?"
-      elseif state.curr == "TURN" then
-        val = A.curr - (T - B.curr) * W
-        M.next = string.format("D TURN HALTed, %d deg to go", math.floor(val))
-      elseif state.curr == "FWD" then
-        val = S.curr - (T - B.curr) * V
-        M.next = string.format("D FWD HALTed, %d cm to go", math.floor(val))
-      end
-      halted = false
-      state.next = "LISTEN"
-    end
-
+    
     if not sim and I[1] == nil then 
         state.next = "STOP"
         state.curr = "STOP" 
     end
 
     if state.curr == "LISTEN" then 
-        if I[1] == 0 then
+        if I[1] == 0 and halted == false then
             M.next = nil
             state.next = "LISTEN"
-        elseif I[1] > 1 then
+        
+        elseif I[1] > 1 and halted == false then
             M.next = "E Unknown"
-        elseif I[1] == 1 then
+        
+        elseif I[1] == 1 and halted == false then
             B.next = T
             A.next = math.abs(I[2])
             S.next = I[3]
             L.next = sgn(I[2]) * 100
             R.next = -sgn(I[2]) * 100
             state.next = "TURN"
+        
+        elseif halted == true then
+            M.next = "E HALT LISTEN?"
+            
         end
+            
+        
     elseif state.curr == "TURN" then 
-        if (T - B.curr) * W < A.curr then
+        if (T - B.curr) * W < A.curr and halted == false then
             state.next = "TURN"
-        else
+        
+        elseif halted == false then
             B.next = T
             L.next = 100
             R.next = 100
             state.next = "FWD"
+        
+        elseif halted == true then
+            M.next = string.format("D TURN HALTED, %d deg to go", math.floor(math.abs(I[2] - (A.curr - (T - B.curr) * W))))
+            R.next = 0
+            L.next = 0
+            state.next = "LISTEN"
+            halted = false
         end
     elseif state.curr == "FWD" then  
-        if (T - B.curr) * V < S.curr then
+        if (T - B.curr) * V < S.curr and halted == false then
             state.next = "FWD"
-        else
+        elseif halted == false then
             M.next = "D OK"
             L.next = 0
             R.next = 0
             state.next = "LISTEN"
+        elseif halted == true then
+            M.next = string.format("D FWD HALTED, %d cm to go", math.floor(math.abs(I[2] - (A.curr - (T - B.curr) * V))))
+            R.next = 0
+            L.next = 0
+            state.next = "LISTEN"
+            halted = false
         end
     else -- Error
         state.next = "STOP"
@@ -297,3 +303,4 @@ if not sim then -- LOCAL SIMULATION ENGINE
     forward()
   end -- while
 end -- if
+
