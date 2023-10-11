@@ -1,4 +1,4 @@
--- L0 Open-loop control of UABotet
+--- L0 Open-loop control of UABotet
 -- By:      Lluis Ribas-Xirgo
 --          Universitat Autonoma de Barcelona
 -- Date:    September 2023
@@ -158,6 +158,8 @@ init = function()
   W = 28.55 -- deg/s -- REPLACED BY VALUES IN SIMULATION !!!!
   I = { 0, 0, 0 } -- Instruction table
   T = 0           -- Time
+  halted = false -- by default
+  val = 0 --distance or angle to go
   state = {}; state.next = "LISTEN"
   B = {}; B.next = 0   -- Begin time 
   A = {}; A.next = 0 -- Absolute angle rotation
@@ -175,7 +177,6 @@ forward = function() -- TO COMPLETE !!!!
     M.curr = M.next
     A.curr = A.next
     S.curr = S.next
-    
 end -- forward()
 
 read_inputs = function()
@@ -202,6 +203,9 @@ read_inputs = function()
           I[2] = 0; I[3] = 0
         end -- if
       end -- if
+      if I[1] == 4 then -- halt
+          halted = true
+      end
   else
       I[1] = 0 -- no command received
   end -- if
@@ -223,6 +227,27 @@ write_outputs = function()
 end -- write_outputs()
 
 step = function()
+    -- Check if HALTed
+    if halted then
+      L.next = 0
+      R.next = 0
+      if state.curr == "LISTEN" then
+        M.next = "E HALT LISTEN?"
+      
+      elseif state.curr == "TURN" then
+        val = A.curr - (T - B.curr) * W
+        M.next = string.format("D TURN HALTed, %d deg to go", math.floor(val))
+        
+      elseif state.curr == "FWD" then
+        val = S.curr - (T - B.curr) * V
+        M.next = string.format("D FWD HALTed, %d cm to go", math.floor(val))
+      
+      state.next = "LISTEN"
+      halted=false
+      end
+      
+    end
+
     if not sim and I[1] == nil then 
         state.next = "STOP"
         state.curr = "STOP" 
